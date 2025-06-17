@@ -7,10 +7,17 @@ from sklearn.metrics import accuracy_score, confusion_matrix, classification_rep
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.layers import LeakyReLU
+from csv_shuffler import csv_shuffler
 
 # Carregar os dados
 train_data = pd.read_csv('data/Train.csv')
 test_data = pd.read_csv('data/Test.csv')
+
+shuffler = csv_shuffler.ShuffleCSV(input_file='data/Train.csv',header=True, batch_size=20000)
+shuffler = csv_shuffler.ShuffleCSV(input_file='data/Test.csv',header=True, batch_size=20000)
+
+shuffler.shuffle_csv()
 
 print("Dados de treino carregados:", train_data.shape)
 print("Dados de teste carregados:", test_data.shape)
@@ -52,9 +59,11 @@ X_test = scaler.transform(X_test)
 
 # Construir o modelo
 model = Sequential([
-    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    Dense(64, input_shape=(X_train.shape[1],)),
+    LeakyReLU(alpha=0.01),
     Dropout(0.3),
-    Dense(32, activation='relu'),
+    Dense(32),
+    LeakyReLU(alpha=0.01),
     Dropout(0.3),
     Dense(1, activation='sigmoid')
 ])
@@ -69,8 +78,16 @@ history = model.fit(X_train, y_train, epochs=10, batch_size=16, validation_split
 # Avaliar o modelo
 y_pred = (model.predict(X_test) > 0.5).astype(int)
 
-print("\nAcurácia:", accuracy_score(y_test, y_pred))
-print("\nMatriz de Confusão:\n", confusion_matrix(y_test, y_pred))
+print("\nAcurácia:", accuracy_score(y_test, y_pred)) # acertos/total de exemplos
+# print("\nMatriz de Confusão:\n", confusion_matrix(y_test, y_pred)) # previu 0 e previu 1 X real 0 e real 1
+cm = confusion_matrix(y_test, y_pred)
+cm_df = pd.DataFrame(cm, # frame de dados da tabela
+                     index=["Real: Não caiu", "Real: Caiu"], # nomes das linhas
+                     columns=["Previsto: Não caiu", "Previsto: Caiu"]) # nomes das colunas
+
+print("\n📊 Matriz de Confusão:")
+print(cm_df)
+
 print("\nRelatório de Classificação:\n", classification_report(y_test, y_pred))
 
 # Salvar modelo se desejar
